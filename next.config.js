@@ -5,6 +5,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  // GitHub Pages configuration
   basePath: process.env.NODE_ENV === 'production' ? '/tinova-web' : '',
   assetPrefix: process.env.NODE_ENV === 'production' ? '/tinova-web/' : '',
 }
