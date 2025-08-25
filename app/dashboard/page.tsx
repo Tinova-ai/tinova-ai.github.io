@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/hooks/useAuth'
+import { hasDashboardAccess, getAccessDeniedInfo } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
@@ -91,18 +92,101 @@ export default function Dashboard() {
               Authentication Required
             </h1>
             <p className="text-lg text-gray-500 mb-8">
-              Please sign in with your GitHub or Google account to access the service dashboard.
+              Please sign in with your authorized GitHub or Google account to access the service dashboard.
             </p>
             <p className="text-sm text-gray-400 mb-8">
               This dashboard provides real-time monitoring of our production services, 
               including health status, response times, and uptime metrics.
+              <br /><br />
+              <strong>Access is restricted to authorized personnel only.</strong>
             </p>
-            <Link
-              href="/api/auth/signin"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 transition-colors"
-            >
-              Sign In to View Dashboard
-            </Link>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-8">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    Only specific GitHub usernames and Google email addresses are authorized for dashboard access.
+                    If you need access, please contact an administrator.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if user has dashboard access
+  if (!hasDashboardAccess(user)) {
+    const accessInfo = getAccessDeniedInfo()
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="w-24 h-24 mx-auto mb-8">
+              <svg className="w-full h-full text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold text-red-900 mb-4">
+              Access Denied
+            </h1>
+            <p className="text-lg text-gray-500 mb-6">
+              Your account <strong>{user.provider === 'github' ? user.username : user.email}</strong> is not authorized to access this dashboard.
+            </p>
+            
+            <div className="bg-red-50 border border-red-200 rounded-md p-6 mb-8 text-left max-w-2xl mx-auto">
+              <h3 className="text-lg font-medium text-red-900 mb-4">Authorized Accounts:</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-red-800 mb-2">GitHub Usernames:</h4>
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {accessInfo.allowedGitHubUsers.map(username => (
+                      <li key={username}><code>{username}</code></li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-red-800 mb-2">Google Email Addresses:</h4>
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {accessInfo.allowedGoogleEmails.map(email => (
+                      <li key={email}><code>{email}</code></li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-red-200">
+                <p className="text-sm text-red-600">
+                  <strong>Need access?</strong> Contact an administrator at{' '}
+                  <a href={`mailto:${accessInfo.contactInfo}`} className="underline">
+                    {accessInfo.contactInfo}
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-x-4">
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+              >
+                Try Different Account
+              </button>
+              <Link
+                href="/"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Back to Home
+              </Link>
+            </div>
           </div>
         </div>
       </div>
