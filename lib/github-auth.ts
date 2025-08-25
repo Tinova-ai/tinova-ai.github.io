@@ -131,8 +131,14 @@ async function handleGitHubCallback(code: string, state: string): Promise<GitHub
       return null // Error already shown in exchangeCodeForUserData
     }
     
+    // Debug: Log the returned user info
+    console.log('GitHub user returned:', githubUser)
+    console.log('Username being checked:', githubUser.login)
+    
     // Check if user is authorized
     if (!isUserAllowed('github', githubUser.login)) {
+      console.log('Access denied for user:', githubUser.login)
+      console.log('Allowed users:', ALLOWED_USERS.github)
       alert(`Access denied. User "${githubUser.login}" is not in the allowed list.\n\nAllowed users: ${ALLOWED_USERS.github.join(', ')}\n\nPlease contact an administrator to request access.`)
       return null
     }

@@ -36,13 +36,25 @@ export const OAUTH_CONFIG = {
 export function isUserAllowed(provider: 'github' | 'google', identifier: string): boolean {
   const allowedUsers = ALLOWED_USERS[provider]
   
+  console.log('Checking user access:', {
+    provider,
+    identifier,
+    allowedUsers,
+    fallbackUsers: DEMO_FALLBACK[provider],
+    envVar: process.env.NEXT_PUBLIC_ADMIN_GITHUB_USERS
+  })
+  
   // If no admin users configured from secrets, use demo fallback
   if (allowedUsers.length === 0) {
     console.warn(`No admin users configured for ${provider}. Using demo fallback.`)
-    return DEMO_FALLBACK[provider].includes(identifier)
+    const allowed = DEMO_FALLBACK[provider].includes(identifier)
+    console.log(`Fallback check result: ${allowed}`)
+    return allowed
   }
   
-  return allowedUsers.includes(identifier)
+  const allowed = allowedUsers.includes(identifier)
+  console.log(`Normal check result: ${allowed}`)
+  return allowed
 }
 
 export function getConfiguredAdminCount() {
