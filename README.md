@@ -11,4 +11,4 @@ Official company website built with Next.js and deployed on GitHub Pages.
 
 ## Live Site
 
-Visit: https://tinova-ai.github.io/tinova-web/
+Visit: https://tinova-ai.github.io/
