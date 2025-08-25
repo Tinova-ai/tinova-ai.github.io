@@ -94,7 +94,7 @@ function initiateGitHubAppOAuth(): void {
   if (typeof window === 'undefined') return
   
   const clientId = 'Iv23lixRc9fo4TFMcA5y' // Your GitHub App Client ID
-  const redirectUri = window.location.origin + window.location.pathname
+  const redirectUri = 'https://tinova-ai.github.io/dashboard'
   const scope = 'read:user user:email'
   const state = Math.random().toString(36).substring(7)
   
