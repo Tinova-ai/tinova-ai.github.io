@@ -44,8 +44,7 @@ async function exchangeCodeForUserData(code: string, state: string): Promise<Git
     const loadingModal = showLoadingModal()
     
     // Call Cloudflare Worker to securely exchange code for token
-    const workerUrl = 'https://tinova-auth-worker.junli8848.workers.dev/api/github-oauth'
-    // Or if you set up custom domain: 'https://auth.tinova-ai.cc/api/github-oauth'
+    const workerUrl = 'https://auth.tinova-ai.cc/api/github-oauth'
     
     const response = await fetch(workerUrl, {
       method: 'POST',
