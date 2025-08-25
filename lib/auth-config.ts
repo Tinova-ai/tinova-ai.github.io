@@ -16,7 +16,9 @@ console.log('Environment variables loaded:', {
   NEXT_PUBLIC_ADMIN_GITHUB_USERS: process.env.NEXT_PUBLIC_ADMIN_GITHUB_USERS,
   NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS: process.env.NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS,
   allowedGitHubUsers: ALLOWED_USERS.github,
-  allowedGoogleEmails: ALLOWED_USERS.google
+  allowedGoogleEmails: ALLOWED_USERS.google,
+  rawGitHubUsers: JSON.stringify(ALLOWED_USERS.github),
+  rawGoogleEmails: JSON.stringify(ALLOWED_USERS.google)
 })
 
 // Fallback for development/demo - remove in production
