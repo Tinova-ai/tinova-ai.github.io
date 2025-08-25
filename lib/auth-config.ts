@@ -10,7 +10,7 @@ export const ALLOWED_USERS = {
     'your-email@gmail.com', // Replace with actual Google email
     // Add more Google emails as needed
   ],
-} as const
+}
 
 export const ORGANIZATION_MEMBERS = [
   'tinova-ai', // Organization name - members will be automatically allowed
@@ -29,7 +29,7 @@ export const OAUTH_CONFIG = {
 } as const
 
 export function isUserAllowed(provider: 'github' | 'google', identifier: string): boolean {
-  return ALLOWED_USERS[provider].includes(identifier as never)
+  return ALLOWED_USERS[provider].includes(identifier)
 }
 
 export function isUserInAllowedOrg(provider: 'github', username: string): boolean {
