@@ -34,12 +34,6 @@ jobs:
         NODE_ENV: production
         NEXT_PUBLIC_ADMIN_GITHUB_USERS: ${{ secrets.ADMIN_GITHUB_USERS }}
         NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS: ${{ secrets.ADMIN_GOOGLE_EMAILS }}
-        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-        NEXTAUTH_URL: https://tinova-ai.github.io
-        GITHUB_ID: ${{ secrets.GITHUB_ID }}
-        GITHUB_SECRET: ${{ secrets.GITHUB_SECRET }}
-        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     - name: Setup Pages
       uses: actions/configure-pages@v4

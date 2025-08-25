@@ -135,11 +135,19 @@ async function handleGitHubCallback(code: string, state: string): Promise<GitHub
     console.log('GitHub user returned:', githubUser)
     console.log('Username being checked:', githubUser.login)
     
-    // Check if user is authorized
-    if (!isUserAllowed('github', githubUser.login)) {
-      console.log('Access denied for user:', githubUser.login)
+    // Check if user is authorized (check both username and email)
+    const isUsernameAllowed = isUserAllowed('github', githubUser.login)
+    const isEmailAllowed = githubUser.email ? isUserAllowed('github', githubUser.email) : false
+    
+    if (!isUsernameAllowed && !isEmailAllowed) {
+      console.log('Access denied for user:', {
+        username: githubUser.login,
+        email: githubUser.email,
+        usernameAllowed: isUsernameAllowed,
+        emailAllowed: isEmailAllowed
+      })
       console.log('Allowed users:', ALLOWED_USERS.github)
-      alert(`Access denied. User "${githubUser.login}" is not in the allowed list.\n\nAllowed users: ${ALLOWED_USERS.github.join(', ')}\n\nPlease contact an administrator to request access.`)
+      alert(`Access denied. User "${githubUser.login}" (${githubUser.email || 'no email'}) is not in the allowed list.\n\nAllowed users: ${ALLOWED_USERS.github.join(', ')}\n\nPlease contact an administrator to request access.`)
       return null
     }
     

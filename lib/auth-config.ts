@@ -13,7 +13,7 @@ export const ALLOWED_USERS = {
 
 // Fallback for development/demo - remove in production
 const DEMO_FALLBACK = {
-  github: ['junli8848'], // Your GitHub username for testing
+  github: ['demo-admin'], // Minimal fallback for local development
   google: ['admin@example.com'], // Demo email for testing (not used)
 }
 
