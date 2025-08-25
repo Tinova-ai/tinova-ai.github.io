@@ -8,9 +8,29 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedUser = getStoredUser()
-    setUser(storedUser)
-    setLoading(false)
+    const handleAuth = async () => {
+      setLoading(true)
+      
+      // Check for OAuth callback first
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('code')) {
+        // OAuth callback detected, process it
+        try {
+          const user = await authSignIn('github')
+          setUser(user)
+        } catch (error) {
+          console.error('OAuth callback error:', error)
+        }
+      } else {
+        // No OAuth callback, just load stored user
+        const storedUser = getStoredUser()
+        setUser(storedUser)
+      }
+      
+      setLoading(false)
+    }
+    
+    handleAuth()
   }, [])
 
   const signIn = async (provider: 'github') => {
