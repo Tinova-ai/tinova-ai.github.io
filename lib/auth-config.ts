@@ -11,6 +11,14 @@ export const ALLOWED_USERS = {
   google: parseAdminList(process.env.NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS),
 }
 
+// Debug: Log environment variables at startup
+console.log('Environment variables loaded:', {
+  NEXT_PUBLIC_ADMIN_GITHUB_USERS: process.env.NEXT_PUBLIC_ADMIN_GITHUB_USERS,
+  NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS: process.env.NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS,
+  allowedGitHubUsers: ALLOWED_USERS.github,
+  allowedGoogleEmails: ALLOWED_USERS.google
+})
+
 // Fallback for development/demo - remove in production
 const DEMO_FALLBACK = {
   github: ['demo-admin'], // Minimal fallback for local development
