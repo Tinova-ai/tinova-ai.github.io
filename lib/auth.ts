@@ -9,7 +9,7 @@ export interface User {
   name: string
   email: string
   image?: string
-  provider: 'github' | 'google'
+  provider: 'github'
   username?: string
   organizations?: string[]
 }
@@ -37,7 +37,7 @@ export function setStoredUser(user: User | null) {
   }
 }
 
-export async function signIn(provider: 'github' | 'google'): Promise<User | null> {
+export async function signIn(provider: 'github'): Promise<User | null> {
   try {
     if (provider === 'github') {
       const githubUser = await signInWithGitHub()
@@ -57,32 +57,6 @@ export async function signIn(provider: 'github' | 'google'): Promise<User | null
       return user
     }
     
-    if (provider === 'google') {
-      // Simulate Google OAuth with access control
-      const email = window.prompt(
-        'Demo: Enter your Google email to simulate OAuth login:'
-      )
-      
-      if (!email) return null
-      
-      // Check if user is allowed
-      if (!isUserAllowed('google', email)) {
-        alert(`Access denied. Email "${email}" is not in the allowed list.\n\nAllowed emails: ${ALLOWED_USERS.google.join(', ')}\n\nPlease contact an administrator to request access.`)
-        return null
-      }
-      
-      const user: User = {
-        id: Math.random().toString(),
-        name: `${email.split('@')[0]} (Demo)`,
-        email,
-        provider: 'google',
-        image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-      }
-      
-      setStoredUser(user)
-      return user
-    }
-    
     return null
   } catch (error) {
     console.error('Sign in error:', error)
@@ -96,15 +70,11 @@ export function signOut() {
 
 // Check if current user has dashboard access
 export function hasDashboardAccess(user: User | null): boolean {
-  if (!user) return false
+  if (!user || user.provider !== 'github') return false
   
   // Check against allowed users list
-  if (user.provider === 'github' && user.username) {
+  if (user.username) {
     return isUserAllowed('github', user.username)
-  }
-  
-  if (user.provider === 'google' && user.email) {
-    return isUserAllowed('google', user.email)
   }
   
   return false

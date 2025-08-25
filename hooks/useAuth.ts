@@ -13,7 +13,7 @@ export function useAuth() {
     setLoading(false)
   }, [])
 
-  const signIn = async (provider: 'github' | 'google') => {
+  const signIn = async (provider: 'github') => {
     setLoading(true)
     try {
       const user = await authSignIn(provider)

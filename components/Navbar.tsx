@@ -58,13 +58,7 @@ export default function Navbar() {
                   onClick={() => signIn('github')}
                   className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-900 transition-colors"
                 >
-                  GitHub
-                </button>
-                <button
-                  onClick={() => signIn('google')}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
-                >
-                  Google
+                  Sign In with GitHub
                 </button>
               </div>
             )}
@@ -124,12 +118,6 @@ export default function Navbar() {
                     className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-900 transition-colors w-full"
                   >
                     Sign In with GitHub
-                  </button>
-                  <button
-                    onClick={() => signIn('google')}
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors w-full"
-                  >
-                    Sign In with Google
                   </button>
                 </div>
               )}

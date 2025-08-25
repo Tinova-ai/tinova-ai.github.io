@@ -93,7 +93,7 @@ export default function Dashboard() {
               Authentication Required
             </h1>
             <p className="text-lg text-gray-500 mb-8">
-              Please sign in with your authorized GitHub or Google account to access the service dashboard.
+              Please sign in with your authorized GitHub account to access the service dashboard.
             </p>
             <p className="text-sm text-gray-400 mb-8">
               This dashboard provides real-time monitoring of our production services, 
@@ -110,7 +110,7 @@ export default function Dashboard() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    Only specific GitHub usernames and Google email addresses are authorized for dashboard access.
+                    Only specific GitHub usernames are authorized for dashboard access.
                     If you need access, please contact an administrator.
                   </p>
                 </div>
@@ -146,19 +146,10 @@ export default function Dashboard() {
               
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-red-800 mb-2">GitHub Usernames:</h4>
+                  <h4 className="font-medium text-red-800 mb-2">Authorized GitHub Usernames:</h4>
                   <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
                     {accessInfo.allowedGitHubUsers.map(username => (
                       <li key={username}><code>{username}</code></li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium text-red-800 mb-2">Google Email Addresses:</h4>
-                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                    {accessInfo.allowedGoogleEmails.map(email => (
-                      <li key={email}><code>{email}</code></li>
                     ))}
                   </ul>
                 </div>

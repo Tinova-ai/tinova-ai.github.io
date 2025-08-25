@@ -13,8 +13,8 @@ export const ALLOWED_USERS = {
 
 // Fallback for development/demo - remove in production
 const DEMO_FALLBACK = {
-  github: ['demo-admin'], // Demo username for testing
-  google: ['admin@example.com'], // Demo email for testing
+  github: ['junli8848'], // Your GitHub username for testing
+  google: ['admin@example.com'], // Demo email for testing (not used)
 }
 
 export const ORGANIZATION_MEMBERS = [
