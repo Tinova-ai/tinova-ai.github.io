@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { hasDashboardAccess, getAccessDeniedInfo } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import AdminConfig from '@/components/AdminConfig'
 
 interface ServiceStatus {
   name: string
@@ -236,6 +237,8 @@ export default function Dashboard() {
             Real-time monitoring of Tinova.ai production services
           </p>
         </div>
+
+        <AdminConfig />
 
         {loading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,15 +1,20 @@
 // Authentication configuration
-// Add specific GitHub usernames that should have dashboard access
+// Admin users are now configured via GitHub Secrets for security
+
+function parseAdminList(envVar: string | undefined): string[] {
+  if (!envVar) return []
+  return envVar.split(',').map(item => item.trim()).filter(item => item.length > 0)
+}
 
 export const ALLOWED_USERS = {
-  github: [
-    'your-github-username', // Replace with actual GitHub username
-    // Add more GitHub usernames as needed
-  ],
-  google: [
-    'your-email@gmail.com', // Replace with actual Google email
-    // Add more Google emails as needed
-  ],
+  github: parseAdminList(process.env.NEXT_PUBLIC_ADMIN_GITHUB_USERS),
+  google: parseAdminList(process.env.NEXT_PUBLIC_ADMIN_GOOGLE_EMAILS),
+}
+
+// Fallback for development/demo - remove in production
+const DEMO_FALLBACK = {
+  github: ['demo-admin'], // Demo username for testing
+  google: ['admin@example.com'], // Demo email for testing
 }
 
 export const ORGANIZATION_MEMBERS = [
@@ -29,7 +34,23 @@ export const OAUTH_CONFIG = {
 } as const
 
 export function isUserAllowed(provider: 'github' | 'google', identifier: string): boolean {
-  return ALLOWED_USERS[provider].includes(identifier)
+  const allowedUsers = ALLOWED_USERS[provider]
+  
+  // If no admin users configured from secrets, use demo fallback
+  if (allowedUsers.length === 0) {
+    console.warn(`No admin users configured for ${provider}. Using demo fallback.`)
+    return DEMO_FALLBACK[provider].includes(identifier)
+  }
+  
+  return allowedUsers.includes(identifier)
+}
+
+export function getConfiguredAdminCount() {
+  return {
+    github: ALLOWED_USERS.github.length,
+    google: ALLOWED_USERS.google.length,
+    usingFallback: ALLOWED_USERS.github.length === 0 && ALLOWED_USERS.google.length === 0
+  }
 }
 
 export function isUserInAllowedOrg(provider: 'github', username: string): boolean {
