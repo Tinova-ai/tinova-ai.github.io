@@ -37,40 +37,55 @@ export async function signInWithGitHub(): Promise<GitHubUser | null> {
   }
 }
 
-// For GitHub Pages, we'll implement a secure redirect-based flow
-// The user will be redirected to GitHub, then back with a code
-// We'll use the code to make a client-side request to GitHub's public API
-// This is a compromise between security and static hosting limitations
-async function exchangeCodeForUserData(code: string): Promise<GitHubUser | null> {
+// Exchange OAuth code for user data via Cloudflare Worker
+async function exchangeCodeForUserData(code: string, state: string): Promise<GitHubUser | null> {
   try {
-    // Show loading state to user
+    // Show loading state
     const loadingModal = showLoadingModal()
     
-    // Since we can't store secrets client-side, we'll use a workaround:
-    // 1. The user has already authenticated with GitHub (we have the code)
-    // 2. We'll ask them to confirm their identity by entering their username
-    // 3. Then verify the username matches their GitHub OAuth session
+    // Call Cloudflare Worker to securely exchange code for token
+    const workerUrl = 'https://tinova-auth-worker.junli8848.workers.dev/api/github-oauth'
+    // Or if you set up custom domain: 'https://auth.tinova-ai.cc/api/github-oauth'
     
-    const username = await promptForUsernameConfirmation()
+    const response = await fetch(workerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        code: code,
+        state: state
+      })
+    })
+    
     loadingModal.remove()
     
-    if (!username) return null
-    
-    // Verify the username exists on GitHub
-    const githubUser = await fetchGitHubUserProfile(username)
-    if (!githubUser) {
-      alert('GitHub user not found. Please check the username.')
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('OAuth exchange failed:', response.status, errorData)
+      alert(`Authentication failed: ${errorData.error || 'Unknown error'}`)
       return null
     }
     
-    // Additional security: The fact that we have a valid OAuth code from GitHub
-    // and the user knows the correct username provides reasonable assurance
-    // In a production app, you'd want proper server-side token exchange
+    const userData = await response.json()
     
-    return githubUser
+    if (userData.error) {
+      alert(`Authentication failed: ${userData.error}`)
+      return null
+    }
+    
+    return {
+      id: userData.id,
+      login: userData.login,
+      name: userData.name,
+      email: userData.email,
+      avatar_url: userData.avatar_url,
+      organizations: []
+    }
     
   } catch (error) {
     console.error('Error exchanging code for user data:', error)
+    alert('Authentication service unavailable. Please try again later.')
     return null
   }
 }
@@ -111,12 +126,10 @@ async function handleGitHubCallback(code: string, state: string): Promise<GitHub
     sessionStorage.removeItem('github_oauth_state')
     window.history.replaceState({}, document.title, window.location.pathname)
     
-    // For GitHub Pages, we need to use a workaround since we can't store secrets
-    // We'll use a GitHub Action or external service to exchange the code
-    const githubUser = await exchangeCodeForUserData(code)
+    // Exchange code for user data via Cloudflare Worker
+    const githubUser = await exchangeCodeForUserData(code, state)
     if (!githubUser) {
-      alert('Authentication failed: Unable to retrieve user information.')
-      return null
+      return null // Error already shown in exchangeCodeForUserData
     }
     
     // Check if user is authorized
