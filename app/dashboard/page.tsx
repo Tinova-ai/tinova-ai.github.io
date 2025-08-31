@@ -35,7 +35,7 @@ export default function Dashboard() {
       
       try {
         // Fetch SSL certificate status
-        const sslResponse = await fetch('/api/ssl-status')
+        const sslResponse = await fetch('/api/ssl-status/')
         const sslData = await sslResponse.json()
         
         // Create SSL certificate service entries
