@@ -16,28 +16,33 @@ export interface SSLStatus {
 // Fetch SSL status from tinova-server via Cloudflare tunnel
 async function fetchSSLStatusFromServer(): Promise<SSLStatus[]> {
   try {
+    // Create timeout controller
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
     const response = await fetch('https://server-stat.tinova-ai.cc/ssl-status', {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'tinova-web-dashboard/1.0'
       },
-      // Add timeout and retry logic
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const result = await response.json()
     
-    // Validate the response structure
-    if (!Array.isArray(data)) {
-      throw new Error('Invalid response format: expected array')
+    // Validate the response structure from server-stat API
+    if (!result.success || !Array.isArray(result.data)) {
+      throw new Error(`Server API error: ${result.error || 'Invalid response format'}`)
     }
 
-    return data
+    return result.data
   } catch (error) {
     console.error('Failed to fetch SSL status from server-stat API:', error)
     
@@ -111,6 +116,10 @@ export async function GET() {
 // POST endpoint to trigger immediate SSL check on tinova-server
 export async function POST() {
   try {
+    // Create timeout controller
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
     // Trigger SSL check on server-stat API
     const response = await fetch('https://server-stat.tinova-ai.cc/ssl-check', {
       method: 'POST',
@@ -118,8 +127,10 @@ export async function POST() {
         'Accept': 'application/json',
         'User-Agent': 'tinova-web-dashboard/1.0'
       },
-      signal: AbortSignal.timeout(15000), // 15 second timeout for check trigger
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
