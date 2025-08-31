@@ -1,0 +1,82 @@
+name: SSL Certificate Monitoring
+
+on:
+  schedule:
+    # Run twice daily at 9 AM and 9 PM UTC
+    - cron: '0 9,21 * * *'
+    # Weekly comprehensive report on Mondays at 8 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  ssl-monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y openssl curl jq
+        
+    - name: Make scripts executable
+      run: |
+        chmod +x scripts/monitoring/*.sh
+        
+    - name: Test SSL certificate monitoring
+      run: |
+        echo "Testing SSL monitoring system..."
+        ./scripts/monitoring/ssl-monitor.sh --help
+        ./scripts/monitoring/ssl-alerts.sh --help
+        
+    - name: Run SSL certificate check
+      run: |
+        echo "Running SSL certificate monitoring..."
+        ./scripts/monitoring/ssl-monitor.sh
+        
+    - name: Run SSL alerts check
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Checking for SSL certificate alerts..."
+        # Note: GitHub CLI is pre-installed on GitHub Actions runners
+        gh auth status || echo "GitHub CLI authentication may be needed for issue creation"
+        ./scripts/monitoring/ssl-alerts.sh
+        
+    - name: Check SSL provider status
+      run: |
+        echo "Checking current SSL provider status..."
+        ./scripts/monitoring/emergency-ssl-switch.sh status || echo "Emergency switch status check completed"
+        
+    - name: Upload monitoring logs and reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ssl-monitoring-logs-${{ github.run_number }}
+        path: |
+          /tmp/ssl-*.log
+          /tmp/ssl-status.json
+        retention-days: 30
+        
+    - name: Summary
+      run: |
+        echo "## SSL Monitoring Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -Iseconds)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Workflow**: SSL Certificate Monitoring" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: Completed" >> $GITHUB_STEP_SUMMARY
+        
+        # Add certificate status if available
+        if [ -f "/tmp/ssl-status.json" ]; then
+          echo "- **Certificate Status**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Certificate Details" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/ssl-status.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
