@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test GitHub OAuth</title>
+</head>
+<body>
+    <h1>GitHub OAuth Test</h1>
+    <button id="testAuth">Test GitHub Authentication</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testAuth').addEventListener('click', async () => {
+            const clientId = 'Iv23lixRc9fo4TFMcA5y';
+            const redirectUri = 'https://tinova-ai.cc/dashboard';
+            const scope = 'read:user user:email';
+            const state = Math.random().toString(36).substring(7);
+            
+            // Store state for verification
+            sessionStorage.setItem('github_oauth_state', state);
+            
+            const authUrl = `https://github.com/login/oauth/authorize?` +
+                `client_id=${clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=${encodeURIComponent(scope)}&` +
+                `state=${state}`;
+            
+            document.getElementById('result').innerHTML = `
+                <h2>OAuth URL:</h2>
+                <p>${authUrl}</p>
+                <p><a href="${authUrl}" target="_blank">Click here to test OAuth flow</a></p>
+            `;
+        });
+
+        // Check if we're returning from OAuth
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        
+        if (code && state) {
+            document.getElementById('result').innerHTML = `
+                <h2>OAuth Callback Received:</h2>
+                <p>Code: ${code}</p>
+                <p>State: ${state}</p>
+                <p>Testing exchange with Cloudflare Worker...</p>
+            `;
+            
+            // Test the exchange
+            fetch('https://auth.tinova-ai.cc/api/github-oauth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code, state })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('result').innerHTML += `
+                    <h3>Exchange Result:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            })
+            .catch(err => {
+                document.getElementById('result').innerHTML += `
+                    <h3>Exchange Error:</h3>
+                    <pre>${err.toString()}</pre>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>

@@ -46,6 +46,12 @@ async function exchangeCodeForUserData(code: string, state: string): Promise<Git
     // Call Cloudflare Worker to securely exchange code for token
     const workerUrl = 'https://auth.tinova-ai.cc/api/github-oauth'
     
+    console.log('Exchanging OAuth code with Cloudflare Worker:', {
+      workerUrl,
+      codeLength: code.length,
+      state
+    })
+    
     const response = await fetch(workerUrl, {
       method: 'POST',
       headers: {
@@ -61,14 +67,21 @@ async function exchangeCodeForUserData(code: string, state: string): Promise<Git
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('OAuth exchange failed:', response.status, errorData)
-      alert(`Authentication failed: ${errorData.error || 'Unknown error'}`)
+      console.error('OAuth exchange failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      alert(`Authentication failed: ${errorData.error || response.statusText || 'Unknown error'}\n\nPlease check the browser console for more details.`)
       return null
     }
     
     const userData = await response.json()
+    console.log('Received user data from Cloudflare Worker:', userData)
     
     if (userData.error) {
+      console.error('Authentication error from worker:', userData)
       alert(`Authentication failed: ${userData.error}`)
       return null
     }
@@ -84,7 +97,7 @@ async function exchangeCodeForUserData(code: string, state: string): Promise<Git
     
   } catch (error) {
     console.error('Error exchanging code for user data:', error)
-    alert('Authentication service unavailable. Please try again later.')
+    alert('Authentication service unavailable. Please try again later.\n\nError: ' + (error as Error).message)
     return null
   }
 }
@@ -94,7 +107,7 @@ function initiateGitHubAppOAuth(): void {
   if (typeof window === 'undefined') return
   
   const clientId = 'Iv23lixRc9fo4TFMcA5y' // Your GitHub App Client ID
-  const redirectUri = 'https://tinova-ai.github.io/dashboard'
+  const redirectUri = 'https://tinova-ai.cc/dashboard'
   const scope = 'read:user user:email'
   const state = Math.random().toString(36).substring(7)
   
