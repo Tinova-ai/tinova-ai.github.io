@@ -18,9 +18,12 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive  # Fetch the blog content submodule
-        token: ${{ secrets.BLOG_ACCESS_TOKEN }}
+
+    - name: Clone blog content
+      run: |
+        git clone https://x-access-token:${{ secrets.BLOG_ACCESS_TOKEN }}@github.com/Tinova-ai/blog-content.git posts
+        echo "Blog content cloned successfully"
+        ls -la posts/
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
