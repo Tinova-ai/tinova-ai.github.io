@@ -55,94 +55,81 @@ jobs:
           exit 1
         fi
 
-    - name: Test OAuth API Endpoint Availability  
+    - name: Test OAuth API Endpoint Functionality
       run: |
-        echo "🔑 Testing OAuth API endpoint availability..."
+        echo "🔑 Testing OAuth API endpoint functionality..."
         
-        # Test the OAuth API endpoint
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-          -X GET https://auth.tinova-ai.cc/api/github-oauth)
-        
-        echo "OAuth API endpoint response code: $HTTP_CODE"
-        
-        if [ "$HTTP_CODE" -eq 405 ]; then
-          echo "✅ OAuth endpoint is reachable (405 Method Not Allowed is expected for GET request)"
-        elif [ "$HTTP_CODE" -eq 200 ]; then
-          echo "✅ OAuth endpoint is reachable and responding"
-        elif [ "$HTTP_CODE" -eq 404 ]; then
-          echo "⚠️  OAuth endpoint returns 404 - Route may not be implemented"
-          echo "ℹ️  Worker is deployed but /api/github-oauth route needs configuration"
-          echo "ℹ️  Check worker code for proper route handling"
-        else
-          echo "⚠️  Unexpected response code: $HTTP_CODE"
-        fi
-
-    - name: Test Auth Worker Request Format
-      run: |
-        echo "📝 Testing auth worker request/response format..."
-        
-        # Test with invalid data to check error handling
+        # Test POST with missing code (should return proper error)
         RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
-          -X POST https://auth.tinova-ai.cc/api/github-oauth \
-          -H "Content-Type: application/json" \
-          -d '{"code":"invalid_test_code","state":"test_state"}')
-        
-        HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | cut -d: -f2)
-        BODY=$(echo "$RESPONSE" | head -n -1)
-        
-        echo "Response body: $BODY"
-        echo "HTTP code: $HTTP_CODE"
-        
-        # Check if worker responds appropriately to invalid requests
-        if [ "$HTTP_CODE" -eq 400 ] || [ "$HTTP_CODE" -eq 401 ] || [ "$HTTP_CODE" -eq 422 ]; then
-          echo "✅ Auth worker properly handles invalid requests"
-        elif [ "$HTTP_CODE" -eq 200 ]; then
-          echo "⚠️  Worker returned 200 for invalid code - check error handling"
-          # Still pass the test as worker is functional
-        elif [ "$HTTP_CODE" -eq 404 ]; then
-          echo "⚠️  Worker not deployed - 404 response indicates missing Cloudflare Worker"
-          echo "ℹ️  Action needed: Deploy the auth worker to Cloudflare"
-        else
-          echo "⚠️  Unexpected response for request: $HTTP_CODE - Worker may need configuration"
-        fi
-
-    - name: Test Worker Error Response Format
-      run: |
-        echo "🚨 Testing error response format..."
-        
-        # Test with missing required fields
-        RESPONSE=$(curl -s \
           -X POST https://auth.tinova-ai.cc/api/github-oauth \
           -H "Content-Type: application/json" \
           -d '{}')
         
-        echo "Response to empty body: $RESPONSE"
+        HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | cut -d: -f2)
+        BODY=$(echo "$RESPONSE" | head -n -1)
         
-        # Check if response contains error field (JSON format)
-        if echo "$RESPONSE" | grep -q '"error"' || echo "$RESPONSE" | grep -q '"message"'; then
-          echo "✅ Worker returns proper error format"
+        echo "Empty POST response: $BODY"
+        echo "HTTP code: $HTTP_CODE"
+        
+        # Test POST with invalid code (should return different error)
+        RESPONSE2=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+          -X POST https://auth.tinova-ai.cc/api/github-oauth \
+          -H "Content-Type: application/json" \
+          -d '{"code":"invalid_test_code","state":"test_state"}')
+        
+        HTTP_CODE2=$(echo "$RESPONSE2" | tail -n1 | cut -d: -f2)
+        BODY2=$(echo "$RESPONSE2" | head -n -1)
+        
+        echo "Invalid code response: $BODY2"
+        echo "HTTP code: $HTTP_CODE2"
+        
+        # Verify both requests return proper JSON errors with expected codes
+        if echo "$BODY" | grep -q '"Missing authorization code"' && [ "$HTTP_CODE" -eq 400 ]; then
+          echo "✅ Missing code validation working correctly"
         else
-          echo "⚠️  Error format might need improvement, but worker is responsive"
+          echo "⚠️  Missing code validation: Expected 400 with 'Missing authorization code'"
+        fi
+        
+        if echo "$BODY2" | grep -q '"Failed to exchange code for token"' && [ "$HTTP_CODE2" -eq 400 ]; then
+          echo "✅ Invalid code handling working correctly"
+        else
+          echo "⚠️  Invalid code handling: Expected 400 with 'Failed to exchange code for token'"
+        fi
+        
+        if echo "$BODY" | grep -q '"error"' && echo "$BODY2" | grep -q '"error"'; then
+          echo "✅ OAuth endpoint is functional and returns proper JSON errors"
+        else
+          echo "❌ OAuth endpoint error handling needs improvement"
+          exit 1
         fi
 
-    - name: Test CORS Headers (if applicable)
+    - name: Test CORS Configuration
       run: |
-        echo "🌐 Testing CORS headers..."
+        echo "🌐 Testing CORS configuration..."
         
-        HEADERS=$(curl -s -I \
+        # Test CORS preflight for the OAuth endpoint
+        CORS_HEADERS=$(curl -s -I \
           -X OPTIONS https://auth.tinova-ai.cc/api/github-oauth \
           -H "Origin: https://tinova-ai.cc" \
-          -H "Access-Control-Request-Method: POST")
+          -H "Access-Control-Request-Method: POST" \
+          -H "Access-Control-Request-Headers: Content-Type")
         
-        echo "CORS preflight response headers:"
-        echo "$HEADERS"
+        echo "CORS preflight response:"
+        echo "$CORS_HEADERS"
         
-        # Check for CORS headers (optional - some workers might not need CORS)
-        if echo "$HEADERS" | grep -i "access-control"; then
-          echo "✅ CORS headers are configured"
+        # Check for required CORS headers
+        if echo "$CORS_HEADERS" | grep -q "Access-Control-Allow-Origin.*tinova-ai.cc"; then
+          echo "✅ CORS origin header configured correctly"
         else
-          echo "ℹ️  No CORS headers found (may be intentional)"
+          echo "⚠️  CORS origin header missing or incorrect"
         fi
+        
+        if echo "$CORS_HEADERS" | grep -q "Access-Control-Allow-Methods.*POST"; then
+          echo "✅ CORS methods configured correctly"
+        else
+          echo "⚠️  CORS methods header missing or incorrect"
+        fi
+
 
     - name: Test Response Time
       run: |
@@ -177,10 +164,19 @@ jobs:
         
 # Test both health and OAuth endpoints for comprehensive report
         HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://auth.tinova-ai.cc/health)
-        OAUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET https://auth.tinova-ai.cc/api/github-oauth)
+        
+        # Test OAuth endpoint with POST (the correct method)
+        OAUTH_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+          -X POST https://auth.tinova-ai.cc/api/github-oauth \
+          -H "Content-Type: application/json" \
+          -d '{"code":"test","state":"test"}')
+        
+        OAUTH_CODE=$(echo "$OAUTH_RESPONSE" | tail -n1 | cut -d: -f2)
+        OAUTH_BODY=$(echo "$OAUTH_RESPONSE" | head -n -1)
         
         echo "Health Endpoint (/health): $HEALTH_CODE"
-        echo "OAuth Endpoint (/api/github-oauth): $OAUTH_CODE"
+        echo "OAuth Endpoint (/api/github-oauth POST): $OAUTH_CODE"
+        echo "OAuth Response: $OAUTH_BODY"
         echo ""
         
         if [ "$HEALTH_CODE" -eq 200 ]; then
@@ -189,14 +185,16 @@ jobs:
           echo "SSL Certificate: ✅ Valid"
           echo "Health Endpoint: ✅ Responsive"
           
-          if [ "$OAUTH_CODE" -eq 405 ] || [ "$OAUTH_CODE" -eq 200 ]; then
-            echo "OAuth Endpoint: ✅ Available"
+          # Check if OAuth endpoint returns proper JSON error for invalid code
+          if echo "$OAUTH_BODY" | grep -q '"error"' && [ "$OAUTH_CODE" -eq 400 ]; then
+            echo "OAuth Endpoint: ✅ Functional (proper error handling)"
             echo "Overall Status: ✅ Fully Operational"
           elif [ "$OAUTH_CODE" -eq 404 ]; then
-            echo "OAuth Endpoint: ⚠️  Route Not Configured"
+            echo "OAuth Endpoint: ❌ Route Not Found"
             echo "Overall Status: ⚠️  Partial - Health OK, OAuth route missing"
-            echo ""
-            echo "🔧 ACTION NEEDED: Configure /api/github-oauth route in worker code"
+          elif [ "$OAUTH_CODE" -eq 500 ]; then
+            echo "OAuth Endpoint: ⚠️  Internal Server Error (check environment variables)"
+            echo "Overall Status: ⚠️  Configuration Issue - Check APP_CLIENT_ID/SECRET"
           else
             echo "OAuth Endpoint: ⚠️  Status $OAUTH_CODE"
             echo "Overall Status: ⚠️  Needs Investigation"
