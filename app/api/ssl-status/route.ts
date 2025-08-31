@@ -13,46 +13,53 @@ export interface SSLStatus {
   }
 }
 
-// Mock function to simulate fetching SSL status from tinova-server
-// In production, this could:
-// 1. Make an HTTP request to tinova-server API endpoint
-// 2. Read from a shared file/database
-// 3. Use SSH to execute monitoring script
+// Fetch SSL status from tinova-server via Cloudflare tunnel
 async function fetchSSLStatusFromServer(): Promise<SSLStatus[]> {
-  // This is a mock implementation
-  // Replace with actual call to tinova-server monitoring system
-  
-  const mockData: SSLStatus[] = [
-    {
-      domain: 'tinova-ai.cc',
-      status: 'healthy',
-      daysUntilExpiration: 83,
-      expiryDate: 'Nov 23, 2025',
-      issuer: 'Google Trust Services (Let\'s Encrypt)',
-      lastChecked: new Date().toISOString(),
-      certificateDetails: {
-        sanDomains: ['tinova-ai.cc', 'auth.tinova-ai.cc'],
-        autoRenewal: 'GitHub Pages'
-      }
-    },
-    {
-      domain: 'www.tinova-ai.cc',
-      status: 'healthy',
-      daysUntilExpiration: 77,
-      expiryDate: 'Nov 17, 2025',
-      issuer: 'Google Trust Services (Let\'s Encrypt)',
-      lastChecked: new Date().toISOString(),
-      certificateDetails: {
-        sanDomains: ['tinova-ai.cc', '*.tinova-ai.cc'],
-        autoRenewal: 'GitHub Pages'
-      }
-    }
-  ]
+  try {
+    const response = await fetch('https://server-stat.tinova-ai.cc/ssl-status', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'tinova-web-dashboard/1.0'
+      },
+      // Add timeout and retry logic
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    })
 
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  return mockData
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    
+    // Validate the response structure
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid response format: expected array')
+    }
+
+    return data
+  } catch (error) {
+    console.error('Failed to fetch SSL status from server-stat API:', error)
+    
+    // Fallback to mock data if live API fails
+    console.warn('Using fallback mock data due to API failure')
+    const fallbackData: SSLStatus[] = [
+      {
+        domain: 'tinova-ai.cc',
+        status: 'error',
+        daysUntilExpiration: -1,
+        expiryDate: 'API Error',
+        issuer: 'Unable to fetch from server',
+        lastChecked: new Date().toISOString(),
+        certificateDetails: {
+          sanDomains: ['API connection failed'],
+          autoRenewal: 'Unknown'
+        }
+      }
+    ]
+    
+    return fallbackData
+  }
 }
 
 // Determine SSL status based on days until expiration
@@ -101,17 +108,29 @@ export async function GET() {
   }
 }
 
-// Optional: POST endpoint to trigger immediate SSL check
+// POST endpoint to trigger immediate SSL check on tinova-server
 export async function POST() {
   try {
-    // This could trigger an immediate SSL check on tinova-server
-    // For now, just return the current status
-    const sslStatuses = await fetchSSLStatusFromServer()
+    // Trigger SSL check on server-stat API
+    const response = await fetch('https://server-stat.tinova-ai.cc/ssl-check', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'tinova-web-dashboard/1.0'
+      },
+      signal: AbortSignal.timeout(15000), // 15 second timeout for check trigger
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
     
     return NextResponse.json({
       success: true,
       message: 'SSL check triggered successfully',
-      data: sslStatuses,
+      data: result.data || result,
       triggeredAt: new Date().toISOString()
     })
   } catch (error) {
@@ -121,6 +140,7 @@ export async function POST() {
       {
         success: false,
         error: 'Failed to trigger SSL certificate check',
+        details: error instanceof Error ? error.message : 'Unknown error',
         triggeredAt: new Date().toISOString()
       },
       { status: 500 }
