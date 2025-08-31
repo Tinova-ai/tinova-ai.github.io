@@ -8,12 +8,20 @@ import AdminConfig from '@/components/AdminConfig'
 
 interface ServiceStatus {
   name: string
-  status: 'healthy' | 'unhealthy' | 'unknown'
+  status: 'healthy' | 'unhealthy' | 'unknown' | 'warning' | 'critical'
   url: string
   responseTime?: number
   lastChecked: string
   uptime?: string
   description: string
+  type?: 'service' | 'ssl-certificate'
+  sslDetails?: {
+    domain: string
+    daysUntilExpiration: number
+    expiryDate: string
+    issuer: string
+    autoRenewal: string
+  }
 }
 
 export default function Dashboard() {
@@ -25,43 +33,94 @@ export default function Dashboard() {
     const fetchServiceStatus = async () => {
       setLoading(true)
       
-      // Simulate fetching service status
-      // In production, this would call your actual monitoring API
-      const mockServices: ServiceStatus[] = [
-        {
-          name: 'Claude API Proxy',
-          status: 'healthy',
-          url: 'https://claudeapi.tinova-ai.cc',
-          responseTime: 145,
-          lastChecked: new Date().toISOString(),
-          uptime: '99.9%',
-          description: 'Nginx reverse proxy for Claude API requests'
-        },
-        {
-          name: 'Health Monitor',
-          status: 'healthy', 
-          url: 'https://claudeapi.tinova-ai.cc/health',
-          responseTime: 23,
-          lastChecked: new Date().toISOString(),
-          uptime: '100%',
-          description: 'Health monitoring service with GitHub integration'
-        },
-        {
-          name: 'Cloudflare Tunnel',
-          status: 'healthy',
-          url: 'Internal Service',
-          responseTime: 12,
-          lastChecked: new Date().toISOString(),
-          uptime: '99.8%',
-          description: 'Secure tunnel to production server'
-        }
-      ]
-      
-      // Simulate API delay
-      setTimeout(() => {
-        setServices(mockServices)
+      try {
+        // Fetch SSL certificate status
+        const sslResponse = await fetch('/api/ssl-status')
+        const sslData = await sslResponse.json()
+        
+        // Create SSL certificate service entries
+        const sslServices: ServiceStatus[] = sslData.success ? sslData.data.map((ssl: any) => ({
+          name: `SSL Certificate (${ssl.domain})`,
+          status: ssl.status,
+          url: `https://${ssl.domain}`,
+          lastChecked: ssl.lastChecked,
+          description: `SSL certificate for ${ssl.domain} (${ssl.daysUntilExpiration} days remaining)`,
+          type: 'ssl-certificate' as const,
+          sslDetails: {
+            domain: ssl.domain,
+            daysUntilExpiration: ssl.daysUntilExpiration,
+            expiryDate: ssl.expiryDate,
+            issuer: ssl.issuer,
+            autoRenewal: ssl.certificateDetails.autoRenewal
+          }
+        })) : []
+        
+        // Regular service monitoring
+        const regularServices: ServiceStatus[] = [
+          {
+            name: 'Claude API Proxy',
+            status: 'healthy',
+            url: 'https://claudeapi.tinova-ai.cc',
+            responseTime: 145,
+            lastChecked: new Date().toISOString(),
+            uptime: '99.9%',
+            description: 'Nginx reverse proxy for Claude API requests',
+            type: 'service'
+          },
+          {
+            name: 'Health Monitor',
+            status: 'healthy', 
+            url: 'https://claudeapi.tinova-ai.cc/health',
+            responseTime: 23,
+            lastChecked: new Date().toISOString(),
+            uptime: '100%',
+            description: 'Health monitoring service with GitHub integration',
+            type: 'service'
+          },
+          {
+            name: 'Cloudflare Tunnel',
+            status: 'healthy',
+            url: 'Internal Service',
+            responseTime: 12,
+            lastChecked: new Date().toISOString(),
+            uptime: '99.8%',
+            description: 'Secure tunnel to production server',
+            type: 'service'
+          }
+        ]
+        
+        // Combine SSL and regular services
+        const allServices = [...regularServices, ...sslServices]
+        setServices(allServices)
         setLoading(false)
-      }, 1000)
+      } catch (error) {
+        console.error('Failed to fetch service status:', error)
+        
+        // Fallback to regular services only
+        const fallbackServices: ServiceStatus[] = [
+          {
+            name: 'Claude API Proxy',
+            status: 'healthy',
+            url: 'https://claudeapi.tinova-ai.cc',
+            responseTime: 145,
+            lastChecked: new Date().toISOString(),
+            uptime: '99.9%',
+            description: 'Nginx reverse proxy for Claude API requests',
+            type: 'service'
+          },
+          {
+            name: 'SSL Monitoring',
+            status: 'unknown',
+            url: 'Server Monitoring',
+            lastChecked: new Date().toISOString(),
+            description: 'SSL certificate monitoring system (status unavailable)',
+            type: 'service'
+          }
+        ]
+        
+        setServices(fallbackServices)
+        setLoading(false)
+      }
     }
 
     if (user) {
@@ -189,6 +248,10 @@ export default function Dashboard() {
     switch (status) {
       case 'healthy':
         return 'text-green-800 bg-green-100'
+      case 'warning':
+        return 'text-yellow-800 bg-yellow-100'
+      case 'critical':
+        return 'text-red-800 bg-red-100'
       case 'unhealthy':
         return 'text-red-800 bg-red-100'
       default:
@@ -204,6 +267,13 @@ export default function Dashboard() {
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         )
+      case 'warning':
+        return (
+          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        )
+      case 'critical':
       case 'unhealthy':
         return (
           <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -262,17 +332,46 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-600 mb-4">{service.description}</p>
                   
                   <div className="space-y-2 text-sm text-gray-500">
-                    {service.responseTime && (
-                      <div className="flex justify-between">
-                        <span>Response Time:</span>
-                        <span className="font-medium">{service.responseTime}ms</span>
-                      </div>
-                    )}
-                    {service.uptime && (
-                      <div className="flex justify-between">
-                        <span>Uptime:</span>
-                        <span className="font-medium">{service.uptime}</span>
-                      </div>
+                    {service.type === 'ssl-certificate' && service.sslDetails ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Days Remaining:</span>
+                          <span className={`font-medium ${
+                            service.sslDetails.daysUntilExpiration <= 7 ? 'text-red-600' :
+                            service.sslDetails.daysUntilExpiration <= 30 ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`}>
+                            {service.sslDetails.daysUntilExpiration} days
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Expires:</span>
+                          <span className="font-medium">{service.sslDetails.expiryDate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Auto-Renewal:</span>
+                          <span className="font-medium">{service.sslDetails.autoRenewal}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Issuer:</span>
+                          <span className="font-medium text-xs">{service.sslDetails.issuer}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {service.responseTime && (
+                          <div className="flex justify-between">
+                            <span>Response Time:</span>
+                            <span className="font-medium">{service.responseTime}ms</span>
+                          </div>
+                        )}
+                        {service.uptime && (
+                          <div className="flex justify-between">
+                            <span>Uptime:</span>
+                            <span className="font-medium">{service.uptime}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                     <div className="flex justify-between">
                       <span>Last Checked:</span>
