@@ -34,9 +34,17 @@ export default function Dashboard() {
       setLoading(true)
       
       try {
-        // Fetch SSL certificate status
-        const sslResponse = await fetch('/api/ssl-status/')
-        const sslData = await sslResponse.json()
+        console.log('Fetching SSL certificate status from server-stat API...')
+        // Fetch SSL certificate status directly from server-stat API
+        const sslResponse = await fetch('https://server-stat.tinova-ai.cc/ssl-status')
+        const sslResult = await sslResponse.json()
+        console.log('SSL data received from server:', sslResult)
+        
+        // Transform server-stat API response to match expected format
+        const sslData = {
+          success: sslResult.success,
+          data: sslResult.data || []
+        }
         
         // Create SSL certificate service entries
         const sslServices: ServiceStatus[] = sslData.success ? sslData.data.map((ssl: any) => ({
@@ -91,6 +99,8 @@ export default function Dashboard() {
         
         // Combine SSL and regular services
         const allServices = [...regularServices, ...sslServices]
+        console.log('Setting services:', allServices.length, 'total services')
+        console.log('SSL services:', sslServices.length, 'SSL certificates')
         setServices(allServices)
         setLoading(false)
       } catch (error) {
@@ -123,12 +133,9 @@ export default function Dashboard() {
       }
     }
 
-    if (user) {
-      fetchServiceStatus()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
+    // Always fetch service status for monitoring dashboard
+    fetchServiceStatus()
+  }, [])
 
   if (authLoading) {
     return (
