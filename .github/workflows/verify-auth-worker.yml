@@ -35,31 +35,46 @@ jobs:
         echo | openssl s_client -servername auth.tinova-ai.cc -connect auth.tinova-ai.cc:443 2>/dev/null | openssl x509 -noout -dates
         echo "✅ SSL certificate is valid"
 
-    - name: Test Auth Worker Endpoint Availability
+    - name: Test Auth Worker Health Endpoint
       run: |
-        echo "🌐 Testing auth worker endpoint availability..."
+        echo "🩺 Testing auth worker health endpoint..."
         
-        # First test root domain to understand routing
-        echo "Testing root domain..."
-        ROOT_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://auth.tinova-ai.cc/)
-        echo "Root domain response: $ROOT_CODE"
+        # Test the health endpoint first (known working endpoint)
+        HEALTH_RESPONSE=$(curl -s https://auth.tinova-ai.cc/health)
+        HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://auth.tinova-ai.cc/health)
         
-        # Test the API endpoint
+        echo "Health endpoint response: '$HEALTH_RESPONSE'"
+        echo "Health endpoint status code: $HEALTH_CODE"
+        
+        if [ "$HEALTH_CODE" -eq 200 ] && echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
+          echo "✅ Auth worker is deployed and running"
+        else
+          echo "❌ Auth worker health check failed - worker may not be deployed"
+          echo "ℹ️  Expected: 200 status with 'healthy' in response"
+          echo "ℹ️  Actual: $HEALTH_CODE status with '$HEALTH_RESPONSE'"
+          exit 1
+        fi
+
+    - name: Test OAuth API Endpoint Availability  
+      run: |
+        echo "🔑 Testing OAuth API endpoint availability..."
+        
+        # Test the OAuth API endpoint
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
           -X GET https://auth.tinova-ai.cc/api/github-oauth)
         
-        echo "API endpoint response code: $HTTP_CODE"
+        echo "OAuth API endpoint response code: $HTTP_CODE"
         
         if [ "$HTTP_CODE" -eq 405 ]; then
-          echo "✅ Endpoint is reachable (405 Method Not Allowed is expected for GET request)"
+          echo "✅ OAuth endpoint is reachable (405 Method Not Allowed is expected for GET request)"
         elif [ "$HTTP_CODE" -eq 200 ]; then
-          echo "✅ Endpoint is reachable and responding"
+          echo "✅ OAuth endpoint is reachable and responding"
         elif [ "$HTTP_CODE" -eq 404 ]; then
-          echo "⚠️  Endpoint returns 404 - Worker may not be deployed or route not configured"
-          echo "ℹ️  This indicates the Cloudflare Worker needs to be deployed or route configured"
-          # Don't exit - continue with other tests to provide full diagnostic info
+          echo "⚠️  OAuth endpoint returns 404 - Route may not be implemented"
+          echo "ℹ️  Worker is deployed but /api/github-oauth route needs configuration"
+          echo "ℹ️  Check worker code for proper route handling"
         else
-          echo "⚠️  Unexpected response code: $HTTP_CODE - Worker may need configuration"
+          echo "⚠️  Unexpected response code: $HTTP_CODE"
         fi
 
     - name: Test Auth Worker Request Format
@@ -160,30 +175,39 @@ jobs:
         echo "Endpoint: https://auth.tinova-ai.cc/api/github-oauth"
         echo ""
         
-        # Test endpoint availability for report
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET https://auth.tinova-ai.cc/api/github-oauth)
+# Test both health and OAuth endpoints for comprehensive report
+        HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://auth.tinova-ai.cc/health)
+        OAUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET https://auth.tinova-ai.cc/api/github-oauth)
         
-        if [ "$HTTP_CODE" -eq 404 ]; then
-          echo "Service Status: ⚠️  Worker Not Deployed"
+        echo "Health Endpoint (/health): $HEALTH_CODE"
+        echo "OAuth Endpoint (/api/github-oauth): $OAUTH_CODE"
+        echo ""
+        
+        if [ "$HEALTH_CODE" -eq 200 ]; then
+          echo "Service Status: ✅ Worker Deployed and Running"
           echo "DNS Resolution: ✅ Working"  
           echo "SSL Certificate: ✅ Valid"
-          echo "HTTP Endpoint: ❌ 404 Not Found"
-          echo "Auth Worker: ❌ Not Deployed"
-          echo ""
-          echo "🚨 ISSUE DETECTED: Cloudflare Worker is not deployed or route not configured"
-          echo "   Action needed: Deploy auth worker to Cloudflare Workers"
-        elif [ "$HTTP_CODE" -eq 405 ] || [ "$HTTP_CODE" -eq 200 ]; then
-          echo "Service Status: ✅ Available"
-          echo "DNS Resolution: ✅ Working"
-          echo "SSL Certificate: ✅ Valid" 
-          echo "HTTP Endpoint: ✅ Responsive"
-          echo "Auth Worker: ✅ Deployed"
+          echo "Health Endpoint: ✅ Responsive"
+          
+          if [ "$OAUTH_CODE" -eq 405 ] || [ "$OAUTH_CODE" -eq 200 ]; then
+            echo "OAuth Endpoint: ✅ Available"
+            echo "Overall Status: ✅ Fully Operational"
+          elif [ "$OAUTH_CODE" -eq 404 ]; then
+            echo "OAuth Endpoint: ⚠️  Route Not Configured"
+            echo "Overall Status: ⚠️  Partial - Health OK, OAuth route missing"
+            echo ""
+            echo "🔧 ACTION NEEDED: Configure /api/github-oauth route in worker code"
+          else
+            echo "OAuth Endpoint: ⚠️  Status $OAUTH_CODE"
+            echo "Overall Status: ⚠️  Needs Investigation"
+          fi
         else
-          echo "Service Status: ⚠️  Unknown Status"
+          echo "Service Status: ❌ Worker Health Failed"
           echo "DNS Resolution: ✅ Working"
           echo "SSL Certificate: ✅ Valid"
-          echo "HTTP Endpoint: ⚠️  Status $HTTP_CODE"
-          echo "Auth Worker: ⚠️  Needs Investigation"
+          echo "Health Endpoint: ❌ Status $HEALTH_CODE"
+          echo "OAuth Endpoint: ❌ Cannot Test (Health Failed)"
+          echo "Overall Status: ❌ Worker Deployment Issue"
         fi
         
         echo ""
